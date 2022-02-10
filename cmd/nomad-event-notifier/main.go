@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/ttys3/nomad-event-notifier/version"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,6 +14,7 @@ import (
 )
 
 func main() {
+	fmt.Printf("%s %s %s\n", version.ServiceName, version.Version, version.BuildTime)
 	os.Exit(realMain(os.Args))
 }
 
