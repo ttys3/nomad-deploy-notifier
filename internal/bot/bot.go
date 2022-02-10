@@ -1,8 +1,10 @@
 package bot
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +36,12 @@ func NewBot(cfg Config, nomadAddress string) (*Bot, error) {
 		return nil, fmt.Errorf("no token provided")
 	}
 
-	api := slack.New(cfg.Token)
+	// avoid Post "https://slack.com/api/chat.postMessage": x509: certificate signed by unknown authority
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	httpClient := &http.Client{Transport: customTransport}
+
+	api := slack.New(cfg.Token, slack.OptionHTTPClient(httpClient))
 
 	bot := &Bot{
 		api:          api,
