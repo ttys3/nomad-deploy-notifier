@@ -177,7 +177,8 @@ func (b *Bot) DefaultAttachmentsDeployment(deploy api.Deployment) []slack.Attach
 	for tgn, tg := range deploy.TaskGroups {
 		field := slack.AttachmentField{
 			Title: fmt.Sprintf("Task Group: %s", tgn),
-			Value: fmt.Sprintf("Healthy: %d, Placed: %d, Desired Canaries: %d", tg.HealthyAllocs, tg.PlacedAllocs, tg.DesiredCanaries),
+			Value: fmt.Sprintf("Healthy: %d, Unhealthy: %d, Placed: %d, DesiredTotal: %d, DesiredCanaries: %d",
+				tg.HealthyAllocs, tg.UnhealthyAllocs, tg.PlacedAllocs, tg.DesiredTotal, tg.DesiredCanaries),
 		}
 		fields = append(fields, field)
 	}
