@@ -93,6 +93,14 @@ func (b *Bot) initialDeployMsg(deploy api.Deployment) error {
 }
 
 func (b *Bot) UpsertAllocationMsg(alloc api.Allocation) error {
+	// do not report old OOM
+	if time.Now().Unix()-alloc.ModifyTime > 300 {
+		return nil
+	}
+	// only report last alloc OOM
+	if alloc.NextAllocation != "" {
+		return nil
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
