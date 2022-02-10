@@ -2,5 +2,5 @@
 
 set -eou pipefail
 
-env SLACK_TOKEN=xoxb-xxxxxx SLACK_CHANNEL=CXXXXXXXX ./bot
+env SLACK_TOKEN=xoxb-xxxxxx SLACK_CHANNEL=CXXXXXXXX ./nomad-event-notifier
 

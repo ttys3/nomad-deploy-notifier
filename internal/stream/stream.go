@@ -5,9 +5,9 @@ import (
 	"math"
 	"os"
 
-	"github.com/drewbailey/nomad-deploy-notifier/internal/bot"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+	"github.com/ttys3/nomad-event-notifier/internal/bot"
 )
 
 type Stream struct {
@@ -28,9 +28,11 @@ func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 	events := s.nomad.EventStream()
 
 	// Topic: Node, Job, Evaluation, Allocation, Deployment
+	// event topic: job
 	topics := map[api.Topic][]string{
 		api.Topic("Deployment"): {"*"},
-		api.Topic("Allocation"): {"AllocationUpdated"},
+		api.Topic("Allocation"): {"*"},
+		// api.Topic("Job"):        {"*"},
 	}
 
 	// index (int: 0) - Specifies the index to start streaming events from.

@@ -3,11 +3,13 @@ package bot
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/slack-go/slack"
 )
 
@@ -18,15 +20,16 @@ type Config struct {
 }
 
 type Bot struct {
-	mu          sync.Mutex
-	chanID      string
-	api         *slack.Client
-	deploys     map[string]string
-	allocations map[string]string
-	L           hclog.Logger
+	mu           sync.Mutex
+	chanID       string
+	nomadAddress string
+	api          *slack.Client
+	deploys      map[string]string
+	allocations  map[string]string
+	L            hclog.Logger
 }
 
-func NewBot(cfg Config) (*Bot, error) {
+func NewBot(cfg Config, nomadAddress string) (*Bot, error) {
 	if cfg.Token == "" {
 		return nil, fmt.Errorf("no token provided")
 	}
@@ -34,11 +37,12 @@ func NewBot(cfg Config) (*Bot, error) {
 	api := slack.New(cfg.Token)
 
 	bot := &Bot{
-		api:         api,
-		chanID:      cfg.Channel,
-		deploys:     make(map[string]string),
-		allocations: make(map[string]string),
-		L:           hclog.Default(),
+		api:          api,
+		nomadAddress: nomadAddress,
+		chanID:       cfg.Channel,
+		deploys:      make(map[string]string),
+		allocations:  make(map[string]string),
+		L:            hclog.Default(),
 	}
 
 	return bot, nil
@@ -54,7 +58,7 @@ func (b *Bot) UpsertDeployMsg(deploy api.Deployment) error {
 	}
 	b.L.Debug("Existing deployment found, updating status", "slack ts", ts)
 
-	attachments := DefaultAttachmentsDeployment(deploy)
+	attachments := b.DefaultAttachmentsDeployment(deploy)
 	opts := []slack.MsgOption{slack.MsgOptionAttachments(attachments...)}
 	opts = append(opts, DefaultDeployMsgOpts()...)
 
@@ -68,7 +72,7 @@ func (b *Bot) UpsertDeployMsg(deploy api.Deployment) error {
 }
 
 func (b *Bot) initialDeployMsg(deploy api.Deployment) error {
-	attachments := DefaultAttachmentsDeployment(deploy)
+	attachments := b.DefaultAttachmentsDeployment(deploy)
 
 	opts := []slack.MsgOption{slack.MsgOptionAttachments(attachments...)}
 	opts = append(opts, DefaultDeployMsgOpts()...)
@@ -91,7 +95,11 @@ func (b *Bot) UpsertAllocationMsg(alloc api.Allocation) error {
 	}
 	b.L.Debug("Existing allocation found, updating status", "slack ts", ts)
 
-	attachments := DefaultAttachmentsAlloc(alloc)
+	attachments := b.DefaultAttachmentsAlloc(alloc)
+	if len(attachments) == 0 {
+		return nil
+	}
+
 	opts := []slack.MsgOption{slack.MsgOptionAttachments(attachments...)}
 	opts = append(opts, DefaultDeployMsgOpts()...)
 
@@ -105,7 +113,10 @@ func (b *Bot) UpsertAllocationMsg(alloc api.Allocation) error {
 }
 
 func (b *Bot) initialAllocMsg(alloc api.Allocation) error {
-	attachments := DefaultAttachmentsAlloc(alloc)
+	attachments := b.DefaultAttachmentsAlloc(alloc)
+	if len(attachments) == 0 {
+		return nil
+	}
 
 	opts := []slack.MsgOption{slack.MsgOptionAttachments(attachments...)}
 	opts = append(opts, DefaultDeployMsgOpts()...)
@@ -124,7 +135,7 @@ func DefaultDeployMsgOpts() []slack.MsgOption {
 	}
 }
 
-func DefaultAttachmentsDeployment(deploy api.Deployment) []slack.Attachment {
+func (b *Bot) DefaultAttachmentsDeployment(deploy api.Deployment) []slack.Attachment {
 	var actions []slack.AttachmentAction
 	if deploy.StatusDescription == "Deployment is running but requires manual promotion" {
 		actions = []slack.AttachmentAction{
@@ -160,9 +171,9 @@ func DefaultAttachmentsDeployment(deploy api.Deployment) []slack.Attachment {
 			Fallback:   "deployment update",
 			Color:      colorForStatus(deploy.Status),
 			AuthorName: fmt.Sprintf("%s deployment update", deploy.JobID),
-			AuthorLink: fmt.Sprintf("http://127.0.0.1:4646/ui/jobs/%s/deployments", deploy.JobID),
+			AuthorLink: fmt.Sprintf("%s/ui/jobs/%s/deployments", b.nomadAddress, deploy.JobID),
 			Title:      deploy.StatusDescription,
-			TitleLink:  fmt.Sprintf("http://127.0.0.1:4646/ui/jobs/%s/deployments", deploy.JobID),
+			TitleLink:  fmt.Sprintf("%s/ui/jobs/%s/deployments", b.nomadAddress, deploy.JobID),
 			Fields:     fields,
 			Footer:     fmt.Sprintf("Deploy ID: %s", deploy.ID),
 			Ts:         json.Number(fmt.Sprintf("%d", time.Now().Unix())),
@@ -171,27 +182,58 @@ func DefaultAttachmentsDeployment(deploy api.Deployment) []slack.Attachment {
 	}
 }
 
-func DefaultAttachmentsAlloc(alloc api.Allocation) []slack.Attachment {
+func (b *Bot) DefaultAttachmentsAlloc(alloc api.Allocation) []slack.Attachment {
+
 	var actions []slack.AttachmentAction
 	var fields []slack.AttachmentField
 	for taskName, taskState := range alloc.TaskStates {
-		for _, event := range taskState.Events {
-			field := slack.AttachmentField{
-				Title: fmt.Sprintf("Task Group: %s Allocation: %s Task: %s", alloc.TaskGroup, alloc.ID, taskName),
-				Value: fmt.Sprintf("DisplayMessage: %s, ExitCode: %d, KillReason: %s KillError: %s",
-					event.DisplayMessage, event.ExitCode, event.KillReason, event.KillError),
-			}
-			fields = append(fields, field)
+		field := slack.AttachmentField{
+			Title: fmt.Sprintf("taskState:%s Failed: %v, Restarts: %d Task Group: %s Task: %s",
+				taskState.State, taskState.Failed, taskState.Restarts, alloc.TaskGroup, taskName),
+			Value: "",
 		}
+		gotOOM := false
+		value := "---------------------------------------------\n"
+		for _, event := range taskState.Events {
+			if strings.Contains(event.DisplayMessage, "OOM") {
+				gotOOM = true
+			}
+
+			value += fmt.Sprintf("*%s*: %s %s", event.Type, event.DisplayMessage, event.Details["driver_message"])
+			if event.Type == structs.TaskTerminated {
+				for _, key := range []string{"exit_code", "signal"} {
+					if val, ok := event.Details[key]; ok && val != "" {
+						value += fmt.Sprintf(", %s: %s", key, val)
+					}
+				}
+			}
+			if event.Type == structs.TaskKilled {
+				for _, key := range []string{"kill_reason", "kill_error", "kill_timeout"} {
+					if val, ok := event.Details[key]; ok && val != "" {
+						value += fmt.Sprintf(", %s: %s", key, val)
+					}
+				}
+			}
+			value += "\n"
+		}
+		field.Value = value
+		if !gotOOM {
+			continue
+		}
+		fields = append(fields, field)
+	}
+
+	if len(fields) == 0 {
+		return []slack.Attachment{}
 	}
 	return []slack.Attachment{
 		{
 			Fallback:   "allocation update",
 			Color:      colorForStatus(alloc.ClientStatus),
 			AuthorName: fmt.Sprintf("%s allocation update", alloc.ID),
-			AuthorLink: fmt.Sprintf("http://127.0.0.1:4646/ui/allocations/%s", alloc.ID),
+			AuthorLink: fmt.Sprintf("%s/ui/allocations/%s", b.nomadAddress, alloc.ID),
 			Title:      alloc.ClientDescription,
-			TitleLink:  fmt.Sprintf("http://127.0.0.1:4646/ui/jobs/%s/%s", alloc.JobID, alloc.TaskGroup),
+			TitleLink:  fmt.Sprintf("%s/ui/jobs/%s/%s", b.nomadAddress, alloc.JobID, alloc.TaskGroup),
 			Fields:     fields,
 			Footer:     fmt.Sprintf("Allocation ID: %s", alloc.ID),
 			Ts:         json.Number(fmt.Sprintf("%d", time.Now().Unix())),

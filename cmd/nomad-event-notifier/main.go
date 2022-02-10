@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/drewbailey/nomad-deploy-notifier/internal/bot"
-	"github.com/drewbailey/nomad-deploy-notifier/internal/stream"
 	"github.com/hashicorp/nomad/api"
+	"github.com/ttys3/nomad-event-notifier/internal/bot"
+	"github.com/ttys3/nomad-event-notifier/internal/stream"
 )
 
 func main() {
@@ -29,13 +29,17 @@ func realMain(args []string) int {
 
 	config := api.DefaultConfig()
 	stream := stream.NewStream(config)
+	stream.L.Info("new stream created", "config", config)
 
-	slackBot, err := bot.NewBot(slackCfg)
+	slackBot, err := bot.NewBot(slackCfg, config.Address)
 	if err != nil {
 		panic(err)
 	}
+	stream.L.Info("new slack bot created", "slackCfg", slackCfg)
 
+	stream.L.Info("begin subscribe event stream")
 	stream.Subscribe(ctx, slackBot)
+	stream.L.Info("end subscribe event stream")
 
 	return 0
 }

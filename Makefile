@@ -1,8 +1,8 @@
 all: bin
 
 bin:
-	go build ./cmd/bot/
+	go build ./cmd/nomad-event-notifier/
 
 
 clean:
-	-rm -f bot
+	-rm -f nomad-event-notifier
