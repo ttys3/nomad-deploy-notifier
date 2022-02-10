@@ -8,6 +8,7 @@ import (
 
 	"github.com/drewbailey/nomad-deploy-notifier/internal/bot"
 	"github.com/drewbailey/nomad-deploy-notifier/internal/stream"
+	"github.com/hashicorp/nomad/api"
 )
 
 func main() {
@@ -26,7 +27,8 @@ func realMain(args []string) int {
 		Channel: toChannel,
 	}
 
-	stream := stream.NewStream(stream.Config{})
+	config := api.DefaultConfig()
+	stream := stream.NewStream(config)
 
 	slackBot, err := bot.NewBot(slackCfg)
 	if err != nil {
@@ -39,7 +41,6 @@ func realMain(args []string) int {
 }
 
 func CtxWithInterrupt(ctx context.Context) (context.Context, func()) {
-
 	ctx, cancel := context.WithCancel(ctx)
 
 	ch := make(chan os.Signal, 1)

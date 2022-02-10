@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"math"
 	"os"
 
 	"github.com/drewbailey/nomad-deploy-notifier/internal/bot"
@@ -14,22 +15,28 @@ type Stream struct {
 	L     hclog.Logger
 }
 
-func NewStream() *Stream {
-	client, _ := api.NewClient(&api.Config{})
+func NewStream(config *api.Config) *Stream {
+	client, _ := api.NewClient(config)
 	return &Stream{
 		nomad: client,
 		L:     hclog.Default(),
 	}
 }
 
+// https://www.nomadproject.io/api-docs/events
 func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 	events := s.nomad.EventStream()
 
+	// Topic: Node, Job, Evaluation, Allocation, Deployment
 	topics := map[api.Topic][]string{
 		api.Topic("Deployment"): {"*"},
+		api.Topic("Allocation"): {"AllocationUpdated"},
 	}
 
-	eventCh, err := events.Stream(ctx, topics, 0, &api.QueryOptions{})
+	// index (int: 0) - Specifies the index to start streaming events from.
+	// If the requested index is no longer in the buffer the stream will start at the next available index.
+	// hack: use math.MaxInt64 to avoid duplicated items each time server restart
+	eventCh, err := events.Stream(ctx, topics, math.MaxInt64, &api.QueryOptions{})
 	if err != nil {
 		s.L.Error("error creating event stream client", "error", err)
 		os.Exit(1)
@@ -45,19 +52,44 @@ func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 				break
 			}
 			if event.IsHeartbeat() {
+				s.L.Info("got heartbeat")
 				continue
 			}
 
+			// Topic: Node, Job, Evaluation, Allocation, Deployment
 			for _, e := range event.Events {
-				deployment, err := e.Deployment()
-				if err != nil {
-					s.L.Error("execpted deployment", "error", err)
-					continue
-				}
+				s.L.Info("got event", "topic", e.Topic, "evt_type", e.Type, "event", e)
 
-				if err = slack.UpsertDeployMsg(*deployment); err != nil {
-					s.L.Warn("error decoding payload", "error", err)
-					return
+				switch e.Topic {
+				case "Allocation":
+					// PlanResult, AllocationUpdated, AllocationUpdateDesiredStatus
+					alloc, err := e.Allocation()
+					if err != nil {
+						s.L.Error("execpted alloc", "error", err)
+						continue
+					}
+
+					if alloc != nil {
+						if err = slack.UpsertAllocationMsg(*alloc); err != nil {
+							s.L.Warn("error decoding alloc", "error", err)
+							continue
+						}
+					}
+				case "Deployment":
+					deployment, err := e.Deployment()
+					if err != nil {
+						s.L.Error("execpted deployment", "error", err)
+						continue
+					}
+					if deployment == nil {
+						s.L.Error("nil deployment")
+						continue
+					}
+
+					if err = slack.UpsertDeployMsg(*deployment); err != nil {
+						s.L.Warn("error decoding payload", "error", err)
+						continue
+					}
 				}
 			}
 		}
