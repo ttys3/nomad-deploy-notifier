@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"os"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
@@ -50,7 +51,7 @@ func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 			return
 		case event := <-eventCh:
 			if event.Err != nil {
-				s.L.Warn("error from event stream", "error", err)
+				s.L.Warn("error from event stream", "error", event.Err)
 				break
 			}
 			if event.IsHeartbeat() {
@@ -94,6 +95,8 @@ func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 					}
 				}
 			}
-		}
-	}
+		default:
+			time.Sleep(time.Millisecond * 100)
+		} // end select
+	} // end for
 }
