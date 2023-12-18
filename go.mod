@@ -3,7 +3,7 @@ module github.com/ttys3/nomad-event-notifier
 go 1.21
 
 require (
-	github.com/hashicorp/go-hclog v1.5.0
+	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/nomad v1.6.2
 	github.com/hashicorp/nomad/api v0.0.0-20230825225458-f25480c9e929
 	github.com/slack-go/slack v0.12.3
