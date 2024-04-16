@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 	"time"
@@ -16,12 +17,15 @@ type Stream struct {
 	L     hclog.Logger
 }
 
-func NewStream(config *api.Config) *Stream {
-	client, _ := api.NewClient(config)
+func NewStream(config *api.Config) (*Stream, error) {
+	client, err := api.NewClient(config)
+	if err != nil {
+		return nil, fmt.Errorf("error creating nomad client: %w", err)
+	}
 	return &Stream{
 		nomad: client,
 		L:     hclog.Default(),
-	}
+	}, nil
 }
 
 // https://www.nomadproject.io/api-docs/events

@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ttys3/nomad-event-notifier/version"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/ttys3/nomad-event-notifier/version"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/ttys3/nomad-event-notifier/internal/bot"
@@ -31,7 +32,11 @@ func realMain(args []string) int {
 	}
 
 	config := api.DefaultConfig()
-	stream := stream.NewStream(config)
+	stream, err := stream.NewStream(config)
+	if err != nil {
+		panic(err)
+	}
+
 	stream.L.Info("new stream created", "config", config)
 
 	// for user click in Slack to open the link
