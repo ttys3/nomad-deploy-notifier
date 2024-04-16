@@ -1,4 +1,4 @@
-FROM ubuntu:21.10
+FROM ubuntu:23.10
 
 COPY nomad-event-notifier  /usr/local/bin/
 
