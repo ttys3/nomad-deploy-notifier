@@ -16,9 +16,9 @@ SLACK_TOKEN="" \
 SLACK_CHANNEL="" \
 NOMAD_SERVER_EXTERNAL_URL="" \
 NOMAD_ADDR=https://127.0.0.1:4646 \
-NOMAD_CACERT=/etc/nomad.d/cert/nomad-ca.pem \
-NOMAD_CLIENT_CERT=/etc/nomad.d/cert/cli.pem \
-NOMAD_CLIENT_KEY=/etc/nomad.d/cert/cli-key.pem
+NOMAD_CACERT="" \
+NOMAD_CLIENT_CERT="" \
+NOMAD_CLIENT_KEY=""
 
 ENTRYPOINT ["/tini", "--"]
 # Run your program under Tini
