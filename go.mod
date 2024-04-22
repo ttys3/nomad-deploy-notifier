@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/hashicorp/go-hclog v1.6.3
-	github.com/hashicorp/nomad v1.7.6
+	github.com/hashicorp/nomad v1.7.7
 	github.com/hashicorp/nomad/api v0.0.0-20240416061655-9d4f7bcb68c5
 	github.com/slack-go/slack v0.12.5
 )
@@ -16,6 +16,7 @@ require (
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fatih/color v1.16.0 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gojuno/minimock/v3 v3.3.6 // indirect
