@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/nomad v1.7.6
 	github.com/hashicorp/nomad/api v0.0.0-20240416061655-9d4f7bcb68c5
-	github.com/slack-go/slack v0.12.5
+	github.com/slack-go/slack v0.13.0
 )
 
 require (
