@@ -3,10 +3,12 @@ module github.com/ttys3/nomad-event-notifier
 go 1.22
 
 require (
+	github.com/bwmarrin/discordgo v0.28.1
+	github.com/go-resty/resty/v2 v2.13.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/nomad v1.7.6
 	github.com/hashicorp/nomad/api v0.0.0-20240416061655-9d4f7bcb68c5
-	github.com/slack-go/slack v0.12.5
+	github.com/slack-go/slack v0.13.0
 )
 
 require (
@@ -77,13 +79,13 @@ require (
 	github.com/tklauser/numcpus v0.7.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zclconf/go-cty v1.14.4 // indirect
-	golang.org/x/crypto v0.22.0 // indirect
+	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20240409090435-93d18d7e34b8 // indirect
 	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/net v0.24.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/text v0.15.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.20.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240415180920-8c6c420018be // indirect

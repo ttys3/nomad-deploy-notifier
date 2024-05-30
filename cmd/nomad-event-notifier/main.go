@@ -7,55 +7,53 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ttys3/nomad-event-notifier/version"
-
 	"github.com/hashicorp/nomad/api"
+
 	"github.com/ttys3/nomad-event-notifier/internal/bot"
 	"github.com/ttys3/nomad-event-notifier/internal/stream"
+	"github.com/ttys3/nomad-event-notifier/version"
 )
 
 func main() {
 	fmt.Printf("%s %s %s\n", version.ServiceName, version.Version, version.BuildTime)
-	os.Exit(realMain(os.Args))
+	os.Exit(realMain())
 }
 
-func realMain(args []string) int {
+func realMain() int {
 	ctx, closer := CtxWithInterrupt(context.Background())
 	defer closer()
 
-	token := os.Getenv("SLACK_TOKEN")
-	toChannel := os.Getenv("SLACK_CHANNEL")
-
-	slackCfg := bot.Config{
-		Token:   token,
-		Channel: toChannel,
+	botCfg := bot.Config{
+		Token:      os.Getenv("SLACK_TOKEN"),
+		Channel:    os.Getenv("SLACK_CHANNEL"),
+		WebhookURL: os.Getenv("DISCORD_WEBHOOK_URL"),
 	}
 
 	config := api.DefaultConfig()
-	stream, err := stream.NewStream(config)
+	s, err := stream.NewStream(config)
 	if err != nil {
 		panic(err)
 	}
 
-	stream.L.Info("new stream created", "config", config)
+	s.L.Info("new stream created", "config", config)
 
 	// for user click in Slack to open the link
 	nomadServerExternalURL := os.Getenv("NOMAD_SERVER_EXTERNAL_URL")
 	if nomadServerExternalURL == "" {
 		nomadServerExternalURL = config.Address
-		stream.L.Info("using default nomad server external URL since NOMAD_SERVER_EXTERNAL_URL is empty",
+		s.L.Info("using default nomad server external URL since NOMAD_SERVER_EXTERNAL_URL is empty",
 			"nomad_url", nomadServerExternalURL)
 	}
 
-	slackBot, err := bot.NewBot(slackCfg, nomadServerExternalURL)
+	b, err := bot.NewBot(botCfg, nomadServerExternalURL)
 	if err != nil {
 		panic(err)
 	}
-	stream.L.Info("new slack bot created", "slackCfg", slackCfg)
+	s.L.Info("new slack bot created", "botCfg", botCfg)
 
-	stream.L.Info("begin subscribe event stream")
-	stream.Subscribe(ctx, slackBot)
-	stream.L.Info("end subscribe event stream")
+	s.L.Info("begin subscribe event stream")
+	s.Subscribe(ctx, b)
+	s.L.Info("end subscribe event stream")
 
 	return 0
 }
