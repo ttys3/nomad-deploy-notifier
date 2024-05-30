@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -66,27 +67,30 @@ func (s *Stream) Subscribe(ctx context.Context, b *bot.Bot) {
 
 			// Topic: Node, Job, Evaluation, Allocation, Deployment
 			for _, e := range event.Events {
-				s.L.Info("got event", "topic", e.Topic, "evt_type", e.Type, "event", e)
+				eventJson, _ := json.Marshal(e)
+				s.L.Info("got event", "topic", e.Topic, "evt_type", e.Type, "event", string(eventJson))
 
 				switch e.Topic {
 				case "Allocation":
 					// PlanResult, AllocationUpdated, AllocationUpdateDesiredStatus
 					alloc, err := e.Allocation()
 					if err != nil {
-						s.L.Error("execpted alloc", "error", err)
+						s.L.Error("decode Payload as Allocation failed", "error", err)
 						continue
 					}
 
 					if alloc != nil {
+						allocJson, _ := json.Marshal(alloc)
+						s.L.Info("got Allocation", "allocation", string(allocJson))
 						if err = b.UpsertAllocationMsg(*alloc); err != nil {
-							s.L.Warn("error decoding alloc", "error", err)
+							s.L.Warn("error UpsertAllocationMsg", "error", err)
 							continue
 						}
 					}
 				case "Deployment":
 					deployment, err := e.Deployment()
 					if err != nil {
-						s.L.Error("execpted deployment", "error", err)
+						s.L.Error("decode Payload as Deployment failed", "error", err)
 						continue
 					}
 					if deployment == nil {
@@ -94,8 +98,10 @@ func (s *Stream) Subscribe(ctx context.Context, b *bot.Bot) {
 						continue
 					}
 
+					deploymentJson, _ := json.Marshal(deployment)
+					s.L.Info("got Deployment", "deployment", string(deploymentJson))
 					if err = b.UpsertDeployMsg(*deployment); err != nil {
-						s.L.Warn("error decoding payload", "error", err)
+						s.L.Warn("error UpsertDeployMsg", "error", err)
 						continue
 					}
 				}
