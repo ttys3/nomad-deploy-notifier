@@ -2,7 +2,13 @@ FROM ubuntu:24.04
 
 COPY nomad-event-notifier  /usr/local/bin/
 
-RUN mkdir -p /etc/nomad.d/cert
+RUN mkdir -p /etc/nomad.d/cert; \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata ca-certificates; \
+    update-ca-certificates -f; \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    apt autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Add Tini
 ENV TINI_VERSION v0.19.0
