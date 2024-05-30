@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"sync"
@@ -53,7 +54,7 @@ func (b *discordBot) UpsertDeployMsg(deploy api.Deployment) error {
 	attachments := b.DefaultAttachmentsDeployment(deploy)
 
 	var r discordgo.Message
-	_, err := b.client.R().SetBody(attachments).SetResult(&r).Post(b.webhookURL + "/messages/" + ts)
+	_, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + ts)
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (b *discordBot) UpsertAllocationMsg(alloc api.Allocation) error {
 
 	// https://discord.com/developers/docs/resources/webhook#edit-webhook-message
 	var r discordgo.Message
-	res, err := b.client.R().SetBody(attachments).SetResult(&r).Post(b.webhookURL + "/messages/" + ts)
+	res, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + ts)
 	if err != nil {
 		return err
 	}
@@ -136,9 +137,11 @@ func (b *discordBot) initialAllocMsg(alloc api.Allocation) error {
 }
 
 func (b *discordBot) DefaultAttachmentsDeployment(deploy api.Deployment) discordgo.MessageSend {
-	var msg = discordgo.MessageSend{
-		Content: "nomad deploy\n" + deploy.StatusDescription,
-	}
+	var content = bytes.NewBufferString("nomad deploy\n")
+	content.WriteString(deploy.StatusDescription)
+	content.WriteString("\n")
+
+	var msg = discordgo.MessageSend{}
 
 	var fields []*discordgo.MessageEmbed
 
@@ -152,6 +155,12 @@ func (b *discordBot) DefaultAttachmentsDeployment(deploy api.Deployment) discord
 		fields = append(fields, field)
 	}
 	msg.Embeds = fields
+
+	fmt.Fprintf(content, "%s deployment update\n", deploy.JobID)
+	fmt.Fprintf(content, "url: %s/ui/jobs/%s/deployments\n", b.nomadAddress, deploy.JobID)
+	fmt.Fprintf(content, "Deploy ID: %s\n", deploy.ID)
+
+	msg.Content = content.String()
 	return msg
 }
 
