@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
+
 	"github.com/ttys3/nomad-event-notifier/internal/bot"
 )
 
@@ -29,7 +30,7 @@ func NewStream(config *api.Config) (*Stream, error) {
 }
 
 // https://www.nomadproject.io/api-docs/events
-func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
+func (s *Stream) Subscribe(ctx context.Context, b *bot.Bot) {
 	events := s.nomad.EventStream()
 
 	// Topic: Node, Job, Evaluation, Allocation, Deployment
@@ -77,7 +78,7 @@ func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 					}
 
 					if alloc != nil {
-						if err = slack.UpsertAllocationMsg(*alloc); err != nil {
+						if err = b.UpsertAllocationMsg(*alloc); err != nil {
 							s.L.Warn("error decoding alloc", "error", err)
 							continue
 						}
@@ -93,7 +94,7 @@ func (s *Stream) Subscribe(ctx context.Context, slack *bot.Bot) {
 						continue
 					}
 
-					if err = slack.UpsertDeployMsg(*deployment); err != nil {
+					if err = b.UpsertDeployMsg(*deployment); err != nil {
 						s.L.Warn("error decoding payload", "error", err)
 						continue
 					}
