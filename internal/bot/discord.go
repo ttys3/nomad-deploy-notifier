@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/ttys3/nomad-event-notifier/version"
 )
 
 func NewDiscordBot(cfg Config, nomadAddress string) (Impl, error) {
@@ -159,6 +160,7 @@ func (b *discordBot) DefaultAttachmentsDeployment(deploy api.Deployment) discord
 	fmt.Fprintf(content, "%s deployment update\n", deploy.JobID)
 	fmt.Fprintf(content, "url: %s/ui/jobs/%s/deployments\n", b.nomadAddress, deploy.JobID)
 	fmt.Fprintf(content, "Deploy ID: %s\n", deploy.ID)
+	fmt.Fprintf(content, "nomad-event-notifier: %s\n", version.Version)
 
 	msg.Content = content.String()
 	return msg
@@ -207,8 +209,12 @@ func (b *discordBot) DefaultAttachmentsAlloc(alloc api.Allocation) discordgo.Mes
 		return discordgo.MessageSend{}
 	}
 
+	var content = bytes.NewBufferString("nomad alloc\n")
+	fmt.Fprintf(content, "Allocation ID: %s\n%s allocation update\nurl: %s/ui/jobs/%s/%s\n", alloc.ID, alloc.ID, b.nomadAddress, alloc.JobID, alloc.TaskGroup)
+	fmt.Fprintf(content, "nomad-event-notifier: %s\n", version.Version)
+
 	return discordgo.MessageSend{
-		Content: fmt.Sprintf("Allocation ID: %s\n%s allocation update\nurl: %s/ui/jobs/%s/%s\n", alloc.ID, alloc.ID, b.nomadAddress, alloc.JobID, alloc.TaskGroup),
+		Content: content.String(),
 		Embeds:  fields,
 	}
 }

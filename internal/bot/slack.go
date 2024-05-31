@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/slack-go/slack"
+	"github.com/ttys3/nomad-event-notifier/version"
 )
 
 type slackBot struct {
@@ -185,7 +186,7 @@ func (b *slackBot) DefaultAttachmentsDeployment(deploy api.Deployment) []slack.A
 			Title:      deploy.StatusDescription,
 			TitleLink:  fmt.Sprintf("%s/ui/jobs/%s/deployments", b.nomadAddress, deploy.JobID),
 			Fields:     fields,
-			Footer:     fmt.Sprintf("Deploy ID: %s", deploy.ID),
+			Footer:     fmt.Sprintf("nomad-event-notifier: %s | Deploy ID: %s", version.Version, deploy.ID),
 			Ts:         json.Number(fmt.Sprintf("%d", time.Now().Unix())),
 			Actions:    actions,
 		},
