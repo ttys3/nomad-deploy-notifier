@@ -3,8 +3,8 @@ package bot
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 )
 
@@ -17,7 +17,7 @@ type Config struct {
 
 type Bot struct {
 	bots []Impl
-	L    hclog.Logger
+	L    *slog.Logger
 }
 
 var errImplNotEnabled = errors.New("impl not available")
@@ -51,7 +51,7 @@ func NewBot(cfg Config, nomadAddress string) (*Bot, error) {
 
 	bot := &Bot{
 		bots: bots,
-		L:    hclog.Default(),
+		L:    slog.Default(),
 	}
 
 	return bot, nil

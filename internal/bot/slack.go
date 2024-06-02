@@ -4,12 +4,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/slack-go/slack"
@@ -23,7 +23,7 @@ type slackBot struct {
 	api          *slack.Client
 	deploys      map[string]string
 	allocations  map[string]string
-	L            hclog.Logger
+	L            *slog.Logger
 }
 
 func newSlackBot(cfg Config, nomadAddress string) (Impl, error) {
@@ -44,7 +44,7 @@ func newSlackBot(cfg Config, nomadAddress string) (Impl, error) {
 		chanID:       cfg.Channel,
 		deploys:      make(map[string]string),
 		allocations:  make(map[string]string),
-		L:            hclog.Default(),
+		L:            slog.With("bot", "slack"),
 	}
 
 	return bot, nil

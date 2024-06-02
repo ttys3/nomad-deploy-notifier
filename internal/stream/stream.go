@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 
 	"github.com/ttys3/nomad-event-notifier/internal/bot"
@@ -16,7 +16,7 @@ import (
 
 type Stream struct {
 	nomad *api.Client
-	L     hclog.Logger
+	L     *slog.Logger
 }
 
 func NewStream(config *api.Config) (*Stream, error) {
@@ -26,7 +26,7 @@ func NewStream(config *api.Config) (*Stream, error) {
 	}
 	return &Stream{
 		nomad: client,
-		L:     hclog.Default(),
+		L:     slog.Default(),
 	}, nil
 }
 

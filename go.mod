@@ -5,7 +5,6 @@ go 1.22
 require (
 	github.com/bwmarrin/discordgo v0.28.1
 	github.com/go-resty/resty/v2 v2.13.1
-	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/nomad v1.7.6
 	github.com/hashicorp/nomad/api v0.0.0-20240416061655-9d4f7bcb68c5
 	github.com/slack-go/slack v0.13.0
@@ -30,6 +29,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-bexpr v0.1.14 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0 // indirect
 	github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f // indirect

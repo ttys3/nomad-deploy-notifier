@@ -3,13 +3,13 @@ package bot
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-resty/resty/v2"
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/ttys3/nomad-event-notifier/version"
@@ -26,7 +26,7 @@ func NewDiscordBot(cfg Config, nomadAddress string) (Impl, error) {
 		allocations:  make(map[string]string),
 		client:       resty.New(),
 		webhookURL:   cfg.WebhookURL,
-		L:            hclog.Default().Named("discord"),
+		L:            slog.With("bot", "discord"),
 	}
 
 	return bot, nil
@@ -39,26 +39,29 @@ type discordBot struct {
 	client       *resty.Client
 	deploys      map[string]string
 	allocations  map[string]string
-	L            hclog.Logger
+	L            *slog.Logger
 }
 
 func (b *discordBot) UpsertDeployMsg(deploy api.Deployment) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ts, ok := b.deploys[deploy.ID]
+	b.L.Info("begin UpsertDeployMsg", "deploy", deploy)
+	messageID, ok := b.deploys[deploy.ID]
 	if !ok {
+		b.L.Debug("no existing deployment found, creating new message")
 		return b.initialDeployMsg(deploy)
 	}
-	b.L.Debug("Existing deployment found, updating status", "slack ts", ts)
+	b.L.Debug("existing deployment found, updating status", "discord_message_id", messageID)
 
 	attachments := b.DefaultAttachmentsDeployment(deploy)
 
 	var r discordgo.Message
-	_, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + ts)
+	_, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + messageID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update previous message, id=%v, err=%w", messageID, err)
 	}
+	b.L.Debug("updated deployment message", "discord_message_id", r.ID, "deploy_id", deploy.ID)
 	b.deploys[deploy.ID] = r.ID
 
 	return nil
@@ -74,12 +77,13 @@ func (b *discordBot) initialDeployMsg(deploy api.Deployment) error {
 	var r discordgo.Message
 	res, err := b.client.R().SetBody(attachments).SetResult(&r).Post(b.webhookURL)
 	if err != nil {
-		return fmt.Errorf("post message failed,  err=%w", err)
+		return fmt.Errorf("failed to post,err=%w, body=%v", err, attachments)
 	}
 	if res.StatusCode() >= 300 {
-		b.L.Error("failed to create message %s", string(res.Body()))
-		return fmt.Errorf("failed to create message %s", res.Body())
+		b.L.Error("failed to create message %s, code=%v", string(res.Body()), res.StatusCode())
+		return fmt.Errorf("failed to create message %s, code=%v", res.Body(), res.StatusCode())
 	}
+	b.L.Debug("created deployment message success", "discord_message_id", r.ID, "deploy_id", deploy.ID)
 
 	b.deploys[deploy.ID] = r.ID
 	return nil
@@ -97,18 +101,22 @@ func (b *discordBot) UpsertAllocationMsg(alloc api.Allocation) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	b.L.Info("begin UpsertAllocationMsg", "alloc", alloc)
+
 	ts, ok := b.allocations[alloc.ID]
 	if !ok {
 		return b.initialAllocMsg(alloc)
 	}
 	b.L.Debug("Existing allocation found, updating status", "slack ts", ts)
 
-	attachments := b.DefaultAttachmentsAlloc(alloc)
+	attachments := b.defaultAttachmentsAlloc(alloc)
 	if len(attachments.Embeds) == 0 {
 		return nil
 	}
 
 	// https://discord.com/developers/docs/resources/webhook#edit-webhook-message
+	// Starting with API v10, the attachments array must contain all attachments that should be present after edit,
+	// including retained and new attachments provided in the request body.
 	var r discordgo.Message
 	res, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + ts)
 	if err != nil {
@@ -123,7 +131,7 @@ func (b *discordBot) UpsertAllocationMsg(alloc api.Allocation) error {
 }
 
 func (b *discordBot) initialAllocMsg(alloc api.Allocation) error {
-	attachments := b.DefaultAttachmentsAlloc(alloc)
+	attachments := b.defaultAttachmentsAlloc(alloc)
 	if len(attachments.Embeds) == 0 {
 		return nil
 	}
@@ -166,7 +174,7 @@ func (b *discordBot) DefaultAttachmentsDeployment(deploy api.Deployment) discord
 	return msg
 }
 
-func (b *discordBot) DefaultAttachmentsAlloc(alloc api.Allocation) discordgo.MessageSend {
+func (b *discordBot) defaultAttachmentsAlloc(alloc api.Allocation) discordgo.MessageSend {
 	var fields []*discordgo.MessageEmbed
 	for taskName, taskState := range alloc.TaskStates {
 		field := discordgo.MessageEmbed{
@@ -228,6 +236,6 @@ func discordColorForStatus(status string) int {
 	case "successful":
 		return 3581519 // "#36a64f"
 	default:
-		return 13882323 //"#D3D3D3"
+		return 13882323 // "#D3D3D3"
 	}
 }

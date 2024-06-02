@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,6 +23,15 @@ func main() {
 func realMain() int {
 	ctx, closer := CtxWithInterrupt(context.Background())
 	defer closer()
+
+	// init logger
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+		// TODO support config level via env
+		Level:       slog.LevelDebug,
+		ReplaceAttr: nil,
+	}))
+	slog.SetDefault(logger)
 
 	botCfg := bot.Config{
 		Token:      os.Getenv("SLACK_TOKEN"),
