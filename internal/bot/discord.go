@@ -144,7 +144,7 @@ func (b *discordBot) initialAllocMsg(alloc api.Allocation) error {
 	}
 
 	var r discordgo.Message
-	_, err := b.client.R().SetBody(attachments).SetResult(&r).Post(b.webhookURL)
+	_, err := b.client.R().SetBody(attachments).SetResult(&r).SetQueryString("wait=true").Post(b.webhookURL)
 	if err != nil {
 		return fmt.Errorf("post message failed,  err=%w", err)
 	}
