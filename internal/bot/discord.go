@@ -79,7 +79,8 @@ func (b *discordBot) initialDeployMsg(deploy api.Deployment) error {
 	_, err := b.client.R().SetBody(attachments).Post(b.webhookURL)
 
 	var r discordgo.Message
-	res, err := b.client.R().SetBody(attachments).SetResult(&r).Post(b.webhookURL)
+	// ref https://discord.com/developers/docs/resources/webhook#execute-webhook
+	res, err := b.client.R().SetBody(attachments).SetResult(&r).SetQueryString("wait=true").Post(b.webhookURL)
 	if err != nil {
 		return fmt.Errorf("failed to post,err=%w, body=%v", err, attachments)
 	}
