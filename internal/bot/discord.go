@@ -144,10 +144,12 @@ func (b *discordBot) initialAllocMsg(alloc api.Allocation) error {
 	}
 
 	var r discordgo.Message
-	_, err := b.client.R().SetBody(attachments).SetResult(&r).SetQueryString("wait=true").Post(b.webhookURL)
+	response, err := b.client.R().SetBody(attachments).SetResult(&r).SetQueryString("wait=true").Post(b.webhookURL)
 	if err != nil {
 		return fmt.Errorf("post message failed,  err=%w", err)
 	}
+	b.L.Debug("created allocation message success", "discord_message_id", r.ID, "alloc_id", alloc.ID,
+		"discord_message", r, "response", string(response.Body()))
 	b.deploys[alloc.ID] = r.ID
 	return nil
 }
