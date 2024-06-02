@@ -48,7 +48,7 @@ func (b *discordBot) UpsertDeployMsg(deploy api.Deployment) error {
 
 	b.L.Info("begin UpsertDeployMsg", "deploy", deploy)
 	messageID, ok := b.deploys[deploy.ID]
-	if !ok {
+	if !ok || messageID == "" {
 		b.L.Debug("no existing deployment found, creating new message")
 		return b.initialDeployMsg(deploy)
 	}
@@ -57,11 +57,15 @@ func (b *discordBot) UpsertDeployMsg(deploy api.Deployment) error {
 	attachments := b.DefaultAttachmentsDeployment(deploy)
 
 	var r discordgo.Message
-	_, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + messageID)
+	rsp, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + messageID)
 	if err != nil {
 		return fmt.Errorf("failed to update previous message, id=%v, err=%w", messageID, err)
 	}
-	b.L.Debug("updated deployment message", "discord_message_id", r.ID, "deploy_id", deploy.ID)
+	if rsp.StatusCode() >= 300 {
+		return fmt.Errorf("failed to update previous message, %s, code=%v", rsp.Body(), rsp.StatusCode())
+	}
+	b.L.Debug("updated deployment message", "discord_message_id", r.ID, "deploy_id", deploy.ID,
+		"discord_message", r, "response", string(rsp.Body()))
 	b.deploys[deploy.ID] = r.ID
 
 	return nil
@@ -83,7 +87,8 @@ func (b *discordBot) initialDeployMsg(deploy api.Deployment) error {
 		b.L.Error("failed to create message %s, code=%v", string(res.Body()), res.StatusCode())
 		return fmt.Errorf("failed to create message %s, code=%v", res.Body(), res.StatusCode())
 	}
-	b.L.Debug("created deployment message success", "discord_message_id", r.ID, "deploy_id", deploy.ID)
+	b.L.Debug("created deployment message success", "discord_message_id", r.ID, "deploy_id", deploy.ID,
+		"discord_message", r, "response", string(res.Body()))
 
 	b.deploys[deploy.ID] = r.ID
 	return nil
@@ -103,11 +108,12 @@ func (b *discordBot) UpsertAllocationMsg(alloc api.Allocation) error {
 
 	b.L.Info("begin UpsertAllocationMsg", "alloc", alloc)
 
-	ts, ok := b.allocations[alloc.ID]
-	if !ok {
+	messageID, ok := b.allocations[alloc.ID]
+	if !ok || messageID == "" {
+		b.L.Debug("no existing allocation found, creating new message")
 		return b.initialAllocMsg(alloc)
 	}
-	b.L.Debug("Existing allocation found, updating status", "slack ts", ts)
+	b.L.Debug("Existing allocation found, updating status", "discord_message_id", messageID)
 
 	attachments := b.defaultAttachmentsAlloc(alloc)
 	if len(attachments.Embeds) == 0 {
@@ -118,7 +124,7 @@ func (b *discordBot) UpsertAllocationMsg(alloc api.Allocation) error {
 	// Starting with API v10, the attachments array must contain all attachments that should be present after edit,
 	// including retained and new attachments provided in the request body.
 	var r discordgo.Message
-	res, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + ts)
+	res, err := b.client.R().SetBody(attachments).SetResult(&r).Patch(b.webhookURL + "/messages/" + messageID)
 	if err != nil {
 		return err
 	}
